@@ -1,8 +1,50 @@
 ---
+# vars:
+#   tmp_dir: "/tmp/etc/netplan/"
+#   actual_dir: "/etc/docker/"
+  
+##START################ Create a temp copy of the ansible file
+- name: Creates directory Tmp
+  file:
+    path: "/tmp/etc/netplan/"
+    state: directory
+
+- name: Creates directory Actual
+  file:
+    path: "/etc/netplan/"
+    state: directory
+    
 - name: Configuring Netplan
   template:
     src: etc/netplan/config.yaml.j2
-    dest: "{{ netplan_config_file }}"
+    dest: "/tmp/etc/netplan/tmp.file"
   become: true
   when: netplan_configuration != []
+  
+
+- name: Stat Tmp
+  become: yes
+  stat:
+    path: "/tmp/etc/netplan/tmp.file"
+    checksum_algorithm: sha1
+  register: tmp_stat
+
+- name: Stat Tmp
+  become: yes
+  stat:
+    path: "{{ netplan_config_file }}"
+    checksum_algorithm: sha1
+  register: actual_stat
+
+- name: preform the copy when the files are different and notify netplan apply
+  copy:
+    src: "/tmp/etc/netplan/tmp.file"
+    dest: "{{ netplan_config_file }}"
+    remote_src: yes
+  when: (actual_stat.stat.exists == False) or (tmp_stat.stat.checksum != actual_stat.stat.checksum)
   notify: netplan generate config
+
+##START################ Create a temp copy of the ansible file
+
+
+
